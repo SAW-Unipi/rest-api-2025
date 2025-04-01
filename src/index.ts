@@ -1,4 +1,13 @@
+import express, { json, text } from "express";
 
+const app = express();
+const PORT = 1234;
+
+const v1 = express.Router();
+
+app.use(json());
+app.use(text());
+app.use("/v1", v1);
 export interface Todo {
     id: string;
     completed: "done" | "ongoing";
@@ -54,3 +63,80 @@ let db: List[] = [
         ],
     },
 ];
+
+// GET /lists
+v1.get("/lists", (req, res) => {
+    const lists = db.map(({ id, name }) => ({ id, name }));
+    res.send(lists);
+});
+
+// POST /lists
+v1.post("/lists", (req, res) => {
+    const name = req.body;
+    const newList: List = {
+        id: crypto.randomUUID(),
+        name,
+        todos: [],
+    };
+    db.push(newList);
+    res.status(201).send(newList);
+});
+
+v1.get("/lists/:id", (req, res) => {
+    const l = db.find((l) => l.id === req.params.id);
+    if (l === undefined) {
+        res.sendStatus(404);
+        return;
+    }
+
+    res.status(200).send(l);
+});
+
+v1.put("/lists/:id", (req, res) => {
+    const newList: List = req.body;
+
+    if (newList.id !== req.params.id) {
+        res.sendStatus(400);
+        return;
+    }
+
+    db = db.map((l) => l.id === req.params.id ? newList : l);
+
+    res.sendStatus(204);
+});
+
+v1.patch("/lists/:id", (req, res) => {
+    const isList = (o: object) => Object.keys(o).every((k) =>
+        ["id", "name", "todos"].includes(k)
+    );
+
+    const newList: Partial<List> = req.body;
+
+    if (newList.id !== undefined || !isList(req.body)) {
+        res.sendStatus(400);
+        return;
+    }
+
+    db = db.map((l) => l.id === req.params.id ? {...l, ...newList} : l);
+
+    res.sendStatus(204);
+});
+
+
+v1.delete("/lists/:id", (req, res) => {
+    db = db.filter(l => l.id !== (req.body as List).id);
+    res.sendStatus(200);
+})
+// GET lists/:id/todos
+//     200 [{}, {}, {}]
+//     400
+//     404
+//     500
+
+v1.get("/", (_, res) => {
+    res.send("Hello!");
+});
+
+app.listen(PORT, () => {
+    console.log(`Listening on port ${PORT}`);
+});
