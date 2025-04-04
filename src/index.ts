@@ -106,9 +106,8 @@ v1.put("/lists/:id", (req, res) => {
 });
 
 v1.patch("/lists/:id", (req, res) => {
-    const isList = (o: object) => Object.keys(o).every((k) =>
-        ["id", "name", "todos"].includes(k)
-    );
+    const isList = (o: object) =>
+        Object.keys(o).every((k) => ["id", "name", "todos"].includes(k));
 
     const newList: Partial<List> = req.body;
 
@@ -117,24 +116,40 @@ v1.patch("/lists/:id", (req, res) => {
         return;
     }
 
-    db = db.map((l) => l.id === req.params.id ? {...l, ...newList} : l);
+    db = db.map((l) => l.id === req.params.id ? { ...l, ...newList } : l);
 
     res.sendStatus(204);
 });
 
-
 v1.delete("/lists/:id", (req, res) => {
-    db = db.filter(l => l.id !== (req.body as List).id);
+    const list = db.find((l) => l.id === req.params.id);
+    if (list === undefined) {
+        res.sendStatus(404);
+        return;
+    }
+    db = db.filter((l) => l.id !== req.params.id);
     res.sendStatus(200);
-})
-// GET lists/:id/todos
-//     200 [{}, {}, {}]
-//     400
-//     404
-//     500
+});
 
-v1.get("/", (_, res) => {
-    res.send("Hello!");
+v1.get("/lists/:id/todos", (req, res) => {
+    const list = db.find((l) => l.id === req.params.id);
+    if (list === undefined) {
+        res.sendStatus(404);
+        return;
+    }
+
+    res.status(200).send(list.todos || []);
+});
+
+v1.get("/todos/:id", (req, res) => {
+    const todo = db.map(({ todos }) => todos)
+        .flat()
+        .find((t) => t.id === req.params.id);
+    if (todo === undefined) {
+        res.sendStatus(404);
+        return;
+    }
+    res.status(200).send(todo);
 });
 
 app.listen(PORT, () => {
